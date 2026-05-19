@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -30,6 +31,7 @@ import (
 
 const (
 	defaultListenAddr = ":7700"
+	defaultZAPPort    = 7710
 	defaultRelayVMRPC = "http://127.0.0.1:9650/ext/bc/R/rpc"
 	shutdownTimeout   = 15 * time.Second
 )
@@ -37,6 +39,7 @@ const (
 func main() {
 	var (
 		listenAddr = flag.String("listen", env("RELAYD_LISTEN", defaultListenAddr), "HTTP listen address")
+		zapPort    = flag.Int("zap-port", envInt("RELAYD_ZAP_PORT", defaultZAPPort), "intra-Lux ZAP operator-plane port (0 = disabled)")
 		relayVMRPC = flag.String("relayvm-rpc", env("RELAYD_RELAYVM_RPC", defaultRelayVMRPC), "R-Chain (relayvm) JSON-RPC URL")
 		dataDir    = flag.String("data-dir", env("RELAYD_DATA_DIR", "data"), "persistent state directory")
 		operatorID = flag.String("operator-id", env("RELAYD_OPERATOR_ID", ""), "this operator's NodeID (hex/CB58)")
@@ -59,6 +62,7 @@ func main() {
 
 	cfg := server.Config{
 		ListenAddr: *listenAddr,
+		ZAPPort:    *zapPort,
 		RelayVMRPC: *relayVMRPC,
 		DataDir:    *dataDir,
 		OperatorID: *operatorID,
@@ -93,6 +97,15 @@ func main() {
 func env(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
+	}
+	return fallback
+}
+
+func envInt(key string, fallback int) int {
+	if v := os.Getenv(key); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			return n
+		}
 	}
 	return fallback
 }
