@@ -5,7 +5,6 @@ package vm
 
 import (
 	"context"
-	"crypto/ed25519"
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/json"
@@ -24,6 +23,7 @@ import (
 	"github.com/luxfi/ids"
 	"github.com/luxfi/log"
 	"github.com/luxfi/node/vms/artifacts"
+	"github.com/luxfi/relay/pkg/profile"
 	"github.com/luxfi/runtime"
 	luxvm "github.com/luxfi/vm"
 	"github.com/luxfi/vm/chain"
@@ -66,6 +66,11 @@ type Config struct {
 	RelayTimeout      int      `json:"relayTimeout"`
 	TrustedRelayers   []string `json:"trustedRelayers"`
 	SupportedChains   []string `json:"supportedChains"`
+
+	// LegacyClassicalEnabled opts the chain into accepting Ed25519 receipts
+	// from operator nodes that haven't migrated to ML-DSA-65 yet. Default
+	// (false) is strict-PQ: only ML-DSA-65 receipts are accepted.
+	LegacyClassicalEnabled bool `json:"legacyClassicalEnabled"`
 }
 
 // Channel represents a cross-chain communication channel
@@ -127,8 +132,13 @@ type VM struct {
 	sessionReceipts map[[32]byte][]*SignedReceipt // sessionID -> receipts
 	receiptCommits  map[[32]byte]*ReceiptCommit   // sessionID -> commit
 
-	// Node public key registry for signature verification
-	nodePublicKeys map[ids.NodeID]ed25519.PublicKey
+	// Node public key registry for signature verification. Keys are stored
+	// alongside their scheme tag so that the profile gate can refuse
+	// classical material under strict-PQ without ever invoking ed25519.Verify.
+	nodePublicKeys map[ids.NodeID]nodeKey
+
+	// Signing-profile policy. Default (zero-value) refuses Ed25519.
+	policy profile.Policy
 
 	// Consensus
 	lastAccepted   *Block
@@ -161,7 +171,7 @@ func (vm *VM) Initialize(
 	vm.pendingBlocks = make(map[ids.ID]*Block)
 	vm.sessionReceipts = make(map[[32]byte][]*SignedReceipt)
 	vm.receiptCommits = make(map[[32]byte]*ReceiptCommit)
-	vm.nodePublicKeys = make(map[ids.NodeID]ed25519.PublicKey)
+	vm.nodePublicKeys = make(map[ids.NodeID]nodeKey)
 
 	// Parse genesis
 	genesis, err := ParseGenesis(vmInit.Genesis)
@@ -185,7 +195,9 @@ func (vm *VM) Initialize(
 		}
 		vm.config.TrustedRelayers = genesis.Config.TrustedRelayers
 		vm.config.SupportedChains = genesis.Config.SupportedChains
+		vm.config.LegacyClassicalEnabled = genesis.Config.LegacyClassicalEnabled
 	}
+	vm.policy = profile.Policy{LegacyClassicalEnabled: vm.config.LegacyClassicalEnabled}
 
 	// Initialize RPC server
 	vm.rpcServer = rpc.NewServer()
@@ -648,38 +660,64 @@ func sha256Hash(data []byte) []byte {
 	return h[:]
 }
 
-// RegisterNodePublicKey registers a node's Ed25519 public key for signature verification
-func (vm *VM) RegisterNodePublicKey(nodeID ids.NodeID, publicKey ed25519.PublicKey) error {
+// nodeKey is the registered identity of a relay operator. The scheme tag is
+// load-bearing: under strict-PQ the policy gate refuses Ed25519 entries
+// before any signature math runs.
+type nodeKey struct {
+	scheme profile.Scheme
+	pub    []byte
+}
+
+// RegisterNodePublicKey registers a node's public key under the given scheme.
+// Registration itself does not refuse classical keys — that decision belongs
+// to the verifier so operators can introspect their own legacy registrations
+// even under strict-PQ. Verification is the gate.
+func (vm *VM) RegisterNodePublicKey(nodeID ids.NodeID, scheme profile.Scheme, publicKey []byte) error {
 	vm.mu.Lock()
 	defer vm.mu.Unlock()
 
-	if len(publicKey) != ed25519.PublicKeySize {
-		return errors.New("invalid public key size")
+	switch scheme {
+	case profile.SchemeMLDSA65:
+		if len(publicKey) != profile.MLDSA65PublicKeySize {
+			return fmt.Errorf("invalid ml-dsa-65 public key size: %d != %d",
+				len(publicKey), profile.MLDSA65PublicKeySize)
+		}
+	case profile.SchemeEd25519:
+		if len(publicKey) != 32 {
+			return fmt.Errorf("invalid ed25519 public key size: %d != 32", len(publicKey))
+		}
+	default:
+		return fmt.Errorf("unknown signing scheme: %s", scheme)
 	}
 
 	if vm.nodePublicKeys == nil {
-		vm.nodePublicKeys = make(map[ids.NodeID]ed25519.PublicKey)
+		vm.nodePublicKeys = make(map[ids.NodeID]nodeKey)
 	}
 
-	vm.nodePublicKeys[nodeID] = publicKey
-	vm.log.Info("registered node public key", log.Stringer("nodeID", nodeID))
+	vm.nodePublicKeys[nodeID] = nodeKey{scheme: scheme, pub: append([]byte(nil), publicKey...)}
+	if vm.log != nil {
+		vm.log.Info("registered node public key",
+			log.Stringer("nodeID", nodeID),
+			log.String("scheme", scheme.String()),
+		)
+	}
 	return nil
 }
 
-// verifyReceiptSignature verifies a receipt's Ed25519 signature
+// verifyReceiptSignature verifies a receipt's signature under the active
+// profile policy. Strict-PQ refuses any classical receipt before any
+// signature math runs.
 func (vm *VM) verifyReceiptSignature(receipt *SignedReceipt) error {
 	vm.mu.RLock()
-	publicKey, exists := vm.nodePublicKeys[receipt.NodeID]
+	nk, exists := vm.nodePublicKeys[receipt.NodeID]
+	policy := vm.policy
 	vm.mu.RUnlock()
 
 	if !exists {
-		// If no public key registered for this node, derive from NodeID
-		// NodeID is typically SHA256(PublicKey)[:20], so we cannot recover the key
-		// In this case, we accept the receipt but log a warning
-		// Production systems should register all validator public keys
-		vm.log.Warn("no public key registered for node, skipping signature verification",
-			log.Stringer("nodeID", receipt.NodeID))
-		return nil
+		// No registered key. Refuse rather than silently accepting — the
+		// previous "log and accept" behaviour was a soundness bug.
+		return fmt.Errorf("%w: no registered key for node %s",
+			errInvalidSignature, receipt.NodeID)
 	}
 
 	// Reconstruct the message that was signed
@@ -696,12 +734,7 @@ func (vm *VM) verifyReceiptSignature(receipt *SignedReceipt) error {
 	h.Write(receipt.ContentHash[:])
 	message := h.Sum(nil)
 
-	// Verify Ed25519 signature
-	if !ed25519.Verify(publicKey, message, receipt.Signature) {
-		return errInvalidSignature
-	}
-
-	return nil
+	return profile.Verify(policy, nk.scheme, nk.pub, message, receipt.Signature)
 }
 
 // =============================================================================
@@ -710,7 +743,9 @@ func (vm *VM) verifyReceiptSignature(receipt *SignedReceipt) error {
 // RelayVM collects per-node signed receipts and commits them as Merkle roots
 // at block boundaries for audit trail and dispute resolution.
 
-// SignedReceipt represents a node's signed acknowledgment of message receipt
+// SignedReceipt represents a node's signed acknowledgment of message receipt.
+// Scheme defaults to ML-DSA-65 (FIPS 204) under strict-PQ; SchemeEd25519 is
+// only accepted by VMs configured with LegacyClassicalEnabled.
 type SignedReceipt struct {
 	// MessageID is the ID of the message being receipted
 	MessageID ids.ID `json:"messageId"`
@@ -720,6 +755,9 @@ type SignedReceipt struct {
 
 	// NodeID of the node signing this receipt
 	NodeID ids.NodeID `json:"nodeId"`
+
+	// Scheme identifies the signing primitive (ML-DSA-65 default).
+	Scheme profile.Scheme `json:"scheme"`
 
 	// Timestamp when the receipt was created
 	Timestamp uint64 `json:"timestamp"`
