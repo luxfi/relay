@@ -15,10 +15,14 @@ import (
 	"time"
 
 	"github.com/luxfi/relay/pkg/relay"
+	"github.com/luxfi/relay/pkg/zaptransport"
 )
 
 type Config struct {
 	ListenAddr string
+	// ZAPPort is the intra-Lux operator-plane ZAP listen port.
+	// Zero disables the ZAP listener entirely (HTTP-only mode).
+	ZAPPort    int
 	RelayVMRPC string
 	DataDir    string
 	OperatorID string
@@ -30,6 +34,7 @@ type Server struct {
 	mux     *http.ServeMux
 	httpSrv *http.Server
 	relay   *relay.Engine
+	zap     *zaptransport.Node // nil if disabled
 
 	mu      sync.RWMutex
 	startAt time.Time
@@ -54,6 +59,25 @@ func New(cfg Config) (*Server, error) {
 	}
 
 	s := &Server{cfg: cfg, mux: http.NewServeMux(), relay: eng}
+
+	if cfg.ZAPPort > 0 {
+		zn, err := zaptransport.New(zaptransport.Config{
+			NodeID: cfg.OperatorID,
+			Port:   cfg.ZAPPort,
+			Logger: cfg.Logger,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("init zap transport: %w", err)
+		}
+		// Receipt handler: log only — verification belongs to the VM, not
+		// the transport.
+		zn.HandleReceipt(func(_ context.Context, from string, body []byte) error {
+			cfg.Logger.Debug("zap: receipt received", "from", from, "bytes", len(body))
+			return nil
+		})
+		s.zap = zn
+	}
+
 	s.routes()
 	s.httpSrv = &http.Server{
 		Addr:              cfg.ListenAddr,
@@ -69,12 +93,20 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/v1/channels", s.handleChannels)
 	s.mux.HandleFunc("/v1/messages", s.handleMessages)
 	s.mux.HandleFunc("/v1/relay/trigger", s.handleTrigger)
+	s.mux.HandleFunc("/v1/zap/peers", s.handleZAPPeers)
 }
 
 func (s *Server) Run(ctx context.Context) error {
 	s.mu.Lock()
 	s.startAt = time.Now()
 	s.mu.Unlock()
+
+	if s.zap != nil {
+		if err := s.zap.Start(); err != nil {
+			return fmt.Errorf("start zap: %w", err)
+		}
+		s.cfg.Logger.Info("relay zap listener started", "port", s.cfg.ZAPPort)
+	}
 
 	go func() {
 		if err := s.relay.Run(ctx); err != nil && ctx.Err() == nil {
@@ -87,6 +119,9 @@ func (s *Server) Run(ctx context.Context) error {
 func (s *Server) Shutdown(ctx context.Context) error {
 	if err := s.relay.Shutdown(ctx); err != nil {
 		s.cfg.Logger.Warn("relay engine shutdown", "err", err)
+	}
+	if s.zap != nil {
+		s.zap.Stop()
 	}
 	return s.httpSrv.Shutdown(ctx)
 }
@@ -135,6 +170,19 @@ func (s *Server) handleMessages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"messages": msgs})
+}
+
+func (s *Server) handleZAPPeers(w http.ResponseWriter, _ *http.Request) {
+	if s.zap == nil {
+		writeJSON(w, http.StatusOK, map[string]any{"enabled": false, "peers": []string{}})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"enabled": true,
+		"nodeId":  s.zap.NodeID(),
+		"port":    s.cfg.ZAPPort,
+		"peers":   s.zap.Peers(),
+	})
 }
 
 func (s *Server) handleTrigger(w http.ResponseWriter, r *http.Request) {
