@@ -23,6 +23,7 @@ import (
 	"github.com/luxfi/ids"
 	"github.com/luxfi/log"
 	"github.com/luxfi/node/vms/artifacts"
+	"github.com/luxfi/node/vms/types/fee"
 	"github.com/luxfi/relay/pkg/profile"
 	"github.com/luxfi/runtime"
 	luxvm "github.com/luxfi/vm"
@@ -140,6 +141,11 @@ type VM struct {
 	// Signing-profile policy. Default (zero-value) refuses Ed25519.
 	policy profile.Policy
 
+	// Fee policy. R-Chain is service-only — relayed messages arrive
+	// from the relayer committee via consensus, not a user mempool —
+	// so this is the fee.NoUserTxPolicy sentinel.
+	feePolicy fee.Policy
+
 	// Consensus
 	lastAccepted   *Block
 	lastAcceptedID ids.ID
@@ -198,6 +204,14 @@ func (vm *VM) Initialize(
 		vm.config.LegacyClassicalEnabled = genesis.Config.LegacyClassicalEnabled
 	}
 	vm.policy = profile.Policy{LegacyClassicalEnabled: vm.config.LegacyClassicalEnabled}
+
+	// Pin fee policy. R-Chain is service-only — relayed messages
+	// arrive via consensus, not a user mempool. Attach the
+	// NoUserTxPolicy sentinel; fee.Validate passes for the sentinel.
+	vm.feePolicy = fee.NoUserTxPolicy{}
+	if err := fee.Validate(vm.feePolicy); err != nil {
+		return fmt.Errorf("relayvm: fee policy: %w", err)
+	}
 
 	// Initialize RPC server
 	vm.rpcServer = rpc.NewServer()
