@@ -18,12 +18,12 @@ import (
 
 // Block represents a block in the RelayVM chain
 type Block struct {
-	ParentID_      ids.ID     `json:"parentId"`
-	BlockHeight    uint64     `json:"height"`
-	BlockTimestamp int64      `json:"timestamp"`
-	Messages       []*Message `json:"messages"`
+	ParentID_      ids.ID            `json:"parentId"`
+	BlockHeight    uint64            `json:"height"`
+	BlockTimestamp int64             `json:"timestamp"`
+	Messages       []*Message        `json:"messages"`
 	Receipts       []*MessageReceipt `json:"receipts,omitempty"`
-	StateRoot      []byte     `json:"stateRoot"`
+	StateRoot      []byte            `json:"stateRoot"`
 
 	// Cached values
 	ID_    ids.ID
