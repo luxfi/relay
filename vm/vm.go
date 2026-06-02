@@ -76,33 +76,33 @@ type Config struct {
 
 // Channel represents a cross-chain communication channel
 type Channel struct {
-	ID          ids.ID    `json:"id"`
-	SourceChain ids.ID    `json:"sourceChain"`
-	DestChain   ids.ID    `json:"destChain"`
-	Ordering    string    `json:"ordering"` // "ordered" or "unordered"
-	Version     string    `json:"version"`
-	State       string    `json:"state"` // "open", "closed"
-	CreatedAt   time.Time `json:"createdAt"`
+	ID          ids.ID            `json:"id"`
+	SourceChain ids.ID            `json:"sourceChain"`
+	DestChain   ids.ID            `json:"destChain"`
+	Ordering    string            `json:"ordering"` // "ordered" or "unordered"
+	Version     string            `json:"version"`
+	State       string            `json:"state"` // "open", "closed"
+	CreatedAt   time.Time         `json:"createdAt"`
 	Metadata    map[string]string `json:"metadata"`
 }
 
 // Message represents a cross-chain message
 type Message struct {
-	ID            ids.ID `json:"id"`
-	ChannelID     ids.ID `json:"channelId"`
-	SourceChain   ids.ID `json:"sourceChain"`
-	DestChain     ids.ID `json:"destChain"`
-	Sequence      uint64 `json:"sequence"`
-	Payload       []byte `json:"payload"`
-	Proof         []byte `json:"proof"` // Merkle proof from source chain
-	SourceHeight  uint64 `json:"sourceHeight"`
-	Sender        []byte `json:"sender"`
-	Receiver      []byte `json:"receiver"`
-	Timeout       int64  `json:"timeout"`
-	State         string `json:"state"`
-	RelayedBy     ids.NodeID `json:"relayedBy,omitempty"`
-	RelayedAt     int64      `json:"relayedAt,omitempty"`
-	ConfirmedAt   int64      `json:"confirmedAt,omitempty"`
+	ID           ids.ID     `json:"id"`
+	ChannelID    ids.ID     `json:"channelId"`
+	SourceChain  ids.ID     `json:"sourceChain"`
+	DestChain    ids.ID     `json:"destChain"`
+	Sequence     uint64     `json:"sequence"`
+	Payload      []byte     `json:"payload"`
+	Proof        []byte     `json:"proof"` // Merkle proof from source chain
+	SourceHeight uint64     `json:"sourceHeight"`
+	Sender       []byte     `json:"sender"`
+	Receiver     []byte     `json:"receiver"`
+	Timeout      int64      `json:"timeout"`
+	State        string     `json:"state"`
+	RelayedBy    ids.NodeID `json:"relayedBy,omitempty"`
+	RelayedAt    int64      `json:"relayedAt,omitempty"`
+	ConfirmedAt  int64      `json:"confirmedAt,omitempty"`
 }
 
 // MessageReceipt is generated when a message is verified
@@ -615,12 +615,12 @@ func (vm *VM) CreateVerifiedMessage(msg *Message) (*artifacts.VerifiedMessage, e
 	}
 
 	verifiedMsg := &artifacts.VerifiedMessage{
-		SrcDomain:         msg.SourceChain,
-		DstDomain:         msg.DestChain,
-		Nonce:             msg.Sequence,
-		Payload:           msg.Payload,
-		SrcFinalityProof:  msg.Proof,
-		Mode:              artifacts.LCMode, // Light client mode
+		SrcDomain:        msg.SourceChain,
+		DstDomain:        msg.DestChain,
+		Nonce:            msg.Sequence,
+		Payload:          msg.Payload,
+		SrcFinalityProof: msg.Proof,
+		Mode:             artifacts.LCMode, // Light client mode
 	}
 
 	return verifiedMsg, nil
