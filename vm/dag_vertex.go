@@ -39,12 +39,12 @@ type RelayVertex struct {
 	vm       *VM
 }
 
-func (v *RelayVertex) ID() ids.ID          { return v.id }
-func (v *RelayVertex) Bytes() []byte        { return v.bytes }
-func (v *RelayVertex) Height() uint64       { return v.height }
-func (v *RelayVertex) Epoch() uint32        { return v.epoch }
-func (v *RelayVertex) Parents() []ids.ID    { return v.parents }
-func (v *RelayVertex) Txs() []ids.ID        { return v.txIDs }
+func (v *RelayVertex) ID() ids.ID             { return v.id }
+func (v *RelayVertex) Bytes() []byte          { return v.bytes }
+func (v *RelayVertex) Height() uint64         { return v.height }
+func (v *RelayVertex) Epoch() uint32          { return v.epoch }
+func (v *RelayVertex) Parents() []ids.ID      { return v.parents }
+func (v *RelayVertex) Txs() []ids.ID          { return v.txIDs }
 func (v *RelayVertex) Status() choices.Status { return v.status }
 
 func (v *RelayVertex) Verify(ctx context.Context) error {
