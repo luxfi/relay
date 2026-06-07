@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.6
-FROM --platform=$BUILDPLATFORM golang:1.26-alpine AS build
+FROM --platform=$BUILDPLATFORM golang:1.26.4-alpine AS build
 WORKDIR /src
 RUN apk add --no-cache git ca-certificates tzdata \
     && echo 'nonroot:x:65532:65532:nonroot:/home/nonroot:/sbin/nologin' >> /etc/passwd \
