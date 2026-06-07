@@ -19,7 +19,7 @@ env:
 
 jobs:
   resolve-ref:
-    runs-on: luxfi-amd64
+    runs-on: evo
     outputs:
       ref: ${{ steps.r.outputs.ref }}
       tag: ${{ steps.r.outputs.tag }}
@@ -86,7 +86,7 @@ jobs:
 
   merge:
     needs: [resolve-ref, build]
-    runs-on: luxfi-amd64
+    runs-on: evo
     steps:
       - uses: actions/download-artifact@v4
         with:
