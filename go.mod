@@ -11,7 +11,7 @@ require (
 	github.com/luxfi/log v1.4.3
 	github.com/luxfi/node v1.29.3
 	github.com/luxfi/runtime v1.1.0
-	github.com/luxfi/vm v1.1.10
+	github.com/luxfi/vm v1.2.0
 	github.com/luxfi/zap v0.7.2
 	github.com/stretchr/testify v1.11.1
 )
@@ -65,7 +65,7 @@ require (
 	github.com/luxfi/mock v0.1.1 // indirect
 	github.com/luxfi/p2p v1.21.1 // indirect
 	github.com/luxfi/pq v1.0.3 // indirect
-	github.com/luxfi/sampler v1.0.0 // indirect
+	github.com/luxfi/sampler v1.1.0 // indirect
 	github.com/luxfi/utils v1.1.5 // indirect
 	github.com/luxfi/validators v1.2.0 // indirect
 	github.com/luxfi/version v1.0.1 // indirect
