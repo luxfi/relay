@@ -1,3 +1,5 @@
+<p align="center"><img src=".github/hero.svg" alt="relay" width="880"></p>
+
 # Lux Relay
 
 Cross-chain message relay for the Lux network. Two surfaces:
