@@ -13,7 +13,7 @@ The chain VM is the security boundary; `relayd` is just the courier.
 
 ```sh
 RELAYD_OPERATOR_ID=NodeID-... \
-RELAYD_RELAYVM_RPC=http://127.0.0.1:9650/ext/bc/R/rpc \
+RELAYD_RELAYVM_RPC=http://127.0.0.1:9650/v1/bc/R/rpc \
 relayd
 ```
 
