@@ -14,7 +14,7 @@
 
 ```sh
 RELAYD_OPERATOR_ID=NodeID-... \
-RELAYD_RELAYVM_RPC=http://127.0.0.1:9650/ext/bc/R/rpc \
+RELAYD_RELAYVM_RPC=http://127.0.0.1:9650/v1/bc/R/rpc \
 RELAYD_LISTEN=:7700 \
 RELAYD_ZAP_PORT=7710 \
 relayd
@@ -26,7 +26,7 @@ relayd
 |---|---|---|
 | `RELAYD_LISTEN` / `--listen` | `:7700` | HTTP listen address (operator API). |
 | `RELAYD_ZAP_PORT` / `--zap-port` | `7710` | Intra-Lux ZAP operator-plane port. `0` disables. |
-| `RELAYD_RELAYVM_RPC` / `--relayvm-rpc` | `http://127.0.0.1:9650/ext/bc/R/rpc` | R-Chain JSON-RPC URL. |
+| `RELAYD_RELAYVM_RPC` / `--relayvm-rpc` | `http://127.0.0.1:9650/v1/bc/R/rpc` | R-Chain JSON-RPC URL. |
 | `RELAYD_DATA_DIR` / `--data-dir` | `data` | Persistent state directory. |
 | `RELAYD_OPERATOR_ID` / `--operator-id` | (required) | This operator's NodeID. |
 | `RELAYD_LOG_LEVEL` / `--log-level` | `info` | `debug|info|warn|error`. |
