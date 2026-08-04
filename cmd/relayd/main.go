@@ -32,7 +32,7 @@ import (
 const (
 	defaultListenAddr = ":7700"
 	defaultZAPPort    = 7710
-	defaultRelayVMRPC = "http://127.0.0.1:9650/ext/bc/R/rpc"
+	defaultRelayVMRPC = "http://127.0.0.1:9650/v1/bc/R/rpc"
 	shutdownTimeout   = 15 * time.Second
 )
 
