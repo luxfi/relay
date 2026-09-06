@@ -1,6 +1,6 @@
 module github.com/luxfi/relay
 
-go 1.26.4
+go 1.26.5
 
 require (
 	github.com/gorilla/rpc v1.2.1
@@ -9,9 +9,8 @@ require (
 	github.com/luxfi/database v1.21.5
 	github.com/luxfi/ids v1.3.2
 	github.com/luxfi/log v1.4.3
-	github.com/luxfi/node v1.36.15
 	github.com/luxfi/runtime v1.3.1
-	github.com/luxfi/vm v1.3.16
+	github.com/luxfi/vm v1.3.17
 	github.com/luxfi/zap v1.2.6
 	github.com/stretchr/testify v1.11.1
 )

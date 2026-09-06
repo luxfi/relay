@@ -32,7 +32,7 @@ Not in scope:
 - **Message**: a single cross-chain envelope `(channelID, seq, payload,
   sender, receiver, timeout)`. Messages flow through states `pending →
   verified → delivered`, with `failed` as a sink.
-- **VerifiedMessage**: the artifact (`luxfi/node/vms/artifacts`) produced
+- **VerifiedMessage**: the artifact (`luxfi/vm/vms/artifacts`) produced
   when R-Chain accepts a Merkle proof against the source-chain finality
   root.
 - **SignedReceipt**: an operator's acknowledgment of message receipt.

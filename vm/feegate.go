@@ -4,7 +4,7 @@
 package vm
 
 import (
-	"github.com/luxfi/node/vms/types/fee"
+	"github.com/luxfi/vm/vms/types/fee"
 )
 
 // gateUserTx refuses every caller — R-Chain accepts no user txs
