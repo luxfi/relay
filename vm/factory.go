@@ -18,7 +18,7 @@ var VMID = ids.ID{'r', 'e', 'l', 'a', 'y', 'v', 'm'}
 type Factory struct{}
 
 // New returns a new instance of the RelayVM
-func (f *Factory) New(logger log.Logger) (interface{}, error) {
+func (f *Factory) New(logger log.Logger) (any, error) {
 	return &VM{
 		channels:      make(map[ids.ID]*Channel),
 		messages:      make(map[ids.ID]*Message),
